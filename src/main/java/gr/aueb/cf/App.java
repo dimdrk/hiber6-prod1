@@ -128,6 +128,38 @@ public class App
         query15.multiselect(courseRoot.get("title"), teacherToJoin2.get("lastname"), teacherToJoin2.get("firstname"));
         List<Object[]> coursesTeachers = em.createQuery(query15).getResultList();
 
+        // List all teachers who do not teach any course
+        CriteriaBuilder cb6 = em.getCriteriaBuilder();
+        CriteriaQuery<Teacher> query16 = cb6.createQuery(Teacher.class);
+        Root<Teacher> teacherRoot2 = query16.from(Teacher.class);
+        query16.select(teacherRoot2).where(cb6.isEmpty(teacherRoot2.get("courses")));
+        List<Teacher> teachersNoCourses = em.createQuery(query16).getResultList();
+
+        // List Teachers with course count
+        CriteriaBuilder cb7 = em.getCriteriaBuilder();
+        CriteriaQuery<Object[]> query17 = cb7.createQuery(Object[].class);
+        Root<Teacher> teacherRoot3 = query17.from(Teacher.class);
+        Join<Teacher, Course> courseToJoin = teacherRoot3.join("courses", JoinType.LEFT);   // JoinType.LEFT -> returns and the nulls
+        query17.multiselect(teacherRoot3, cb7.count(courseToJoin)).groupBy(teacherRoot3);
+        List<Object[]> teachersWithCoursesCount = em.createQuery(query17).getResultList();
+
+        // Find teachers who teach SQL
+        CriteriaBuilder cb8 = em.getCriteriaBuilder();
+        CriteriaQuery<Teacher> query18 = cb8.createQuery(Teacher.class);
+        Root<Teacher> teacherRoot4 = query18.from(Teacher.class);
+        ParameterExpression<String> value = cb8.parameter(String.class, "title");
+            // query18.select(teacherRoot4).where(cb8.equal(teacherRoot4.get("courses").get("title"), "SQL")); // SQL Injection
+        query18.select(teacherRoot4).where(cb8.equal(teacherRoot4.get("courses").get("title"), value));
+        List<Teacher> teachersWithSQL = em.createQuery(query18).setParameter("title", "SQL").getResultList();
+
+        // Find Teachers with lastname starts with 'A' and teach more than one courses
+        CriteriaBuilder cb9 = em.getCriteriaBuilder();
+        CriteriaQuery<Teacher> query19 = cb9.createQuery(Teacher.class);
+        Root<Teacher> teacherRoot5 = query19.from(Teacher.class);
+        ParameterExpression<String> val = cb9.parameter(String.class, "lastname");
+        query19.select(teacherRoot5).where(cb9.like(teacherRoot5.get("lastname"), val), cb9.gt(cb9.size(teacherRoot5.get("courses")), 1));
+        List<Teacher> teachersLastnameCourseMoreThanOne = em.createQuery(query19).setParameter("lastname", "Α%").getResultList();
+
         em.getTransaction().commit();
 
         // Print all teachers.
@@ -199,6 +231,24 @@ public class App
             }
             System.out.println();
         }
+
+        // Print a list with all teachers who do not teach any course
+        teachersNoCourses.forEach(System.out::println);
+
+        //  Print a list of teachers with course count
+        for (Object[] row : teachersWithCoursesCount) {
+            for (Object item : row) {
+                System.out.print(item + " ");
+            }
+            System.out.println();
+        }
+
+        // Print teachers who teach SQL
+        teachersWithSQL.forEach(System.out::println);
+
+        // Print Teachers with lastname starts with 'A' and teach more than one courses
+        teachersLastnameCourseMoreThanOne.forEach(System.out::println);
+
         em.close();
         emf.close();
 
